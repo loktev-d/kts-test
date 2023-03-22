@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}
+data:
+  create_table.sql: |
+    create table addresses (
+        id uuid,
+        ip varchar(15)
+    );

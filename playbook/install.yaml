@@ -1,0 +1,79 @@
+- name: Install App and Postgres with Helm
+  hosts: master
+
+  tasks:
+    - name: Prerequisites
+      tags: prereq
+      block:
+        # Используется apt, тк в ТЗ ничего не сказано про дистрибутив хоста
+        - name: Install pip
+          ansible.builtin.apt:
+            name: python3-pip
+            state: present
+            update_cache: true
+          become: true
+
+        - name: Install python modules
+          ansible.builtin.pip:
+            name:
+              - requests
+              - PyYAML
+
+        - name: Download Helm archive
+          ansible.builtin.get_url:
+            url: "{{ helm_url }}"
+            dest: ~/helm.tar.gz
+          become: true
+
+        - name: Unpack Helm archive
+          ansible.builtin.unarchive:
+            src: ~/helm.tar.gz
+            dest: ~/
+            remote_src: true
+          become: true
+
+        - name: Copy Helm bin to PATH
+          ansible.builtin.copy:
+            src: ~/linux-amd64/helm
+            dest: /usr/local/bin/helm
+            remote_src: true
+            mode: 711
+          become: true
+
+    - name: Log into DockerHub
+      community.docker.docker_login:
+        username: "{{ dockerhub_user }}"
+        password: "{{ dockerhub_pass }}"
+
+    - name: Copy app source files to host
+      ansible.builtin.copy:
+        src: ../app
+        dest: "{{ src_dir }}"
+
+    - name: Build and push app image
+      community.docker.docker_image:
+        name: "{{ image_name }}"
+        repository: "{{ image_name }}"
+        push: true
+        source: build
+        build:
+          path: "{{ src_dir }}/app"
+
+    - name: Copy charts to host
+      ansible.builtin.copy:
+        src: ../charts
+        dest: "{{ src_dir }}"
+
+    - name: Install postgres chart
+      kubernetes.core.helm:
+        name: postgres
+        chart_ref: "{{ src_dir }}/charts/postgres"
+        release_namespace: "{{ release_namespace }}"
+
+    - name: Install app chart
+      kubernetes.core.helm:
+        name: app
+        chart_ref: "{{ src_dir }}/charts/app"
+        release_namespace: "{{ release_namespace }}"
+        values:
+          image: "{{ image_name }}"

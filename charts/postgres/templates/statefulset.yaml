@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  serviceName: {{ .Release.Name }}
+  replicas: {{ .Values.statefulSet.replicas }}
+  minReadySeconds: {{ .Values.statefulSet.minReadySeconds }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.statefulSet.terminationGracePeriodSeconds }}
+      volumes:
+        - name: init
+          configMap:
+            name: {{ .Release.Name }}
+      containers:
+        - name: {{ .Release.Name }}
+          image: {{ .Values.postgres.image }}
+          env:
+            - name: PGDATA
+              value: {{ .Values.postgres.pgdata }}
+          envFrom:
+            - secretRef:
+                name: {{ .Release.Name }}
+          ports:
+            - containerPort: {{ .Values.postgres.port }}
+          volumeMounts:
+            - name: {{ .Release.Name }}
+              mountPath: {{ .Values.postgres.pgdata }}
+            - name: init
+              mountPath: "/docker-entrypoint-initdb.d"
+          livenessProbe:
+            tcpSocket:
+               port: 5432
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+  volumeClaimTemplates:
+    - metadata:
+        name: {{ .Release.Name }}
+      spec:
+        accessModes:
+        {{- range .Values.pvc.accessModes }}
+          - {{ . }}
+        {{- end }}
+        {{- with .Values.pvc.storageClassName }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.pvc.storage }}

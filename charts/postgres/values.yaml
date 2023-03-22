@@ -1,0 +1,14 @@
+postgres:
+  image: postgres:15-alpine
+  port: 5432
+  postgresPassword: postgres
+  pgdata: /var/lib/postgresql/data
+statefulSet:
+  replicas: 1
+  minReadySeconds: 5
+  terminationGracePeriodSeconds: 5
+pvc:
+  storage: 512Mi
+  accessModes:
+    - ReadWriteOnce
+  # storageClassName: ""

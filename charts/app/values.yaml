@@ -1,0 +1,6 @@
+replicas: 1
+image: ktstest/app
+ingressPrefix: /app
+postgresHost: postgres
+postgresUser: postgres
+postgresPassword: postgres

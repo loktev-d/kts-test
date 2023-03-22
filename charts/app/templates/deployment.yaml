@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+    spec:
+      initContainers:
+        - name: init-postgres
+          image: busybox
+          command: ['sh', '-c', 'until telnet {{ .Values.postgresHost }} 5432; do echo waiting for postgres; sleep 2; done;']
+      containers:
+      - name: {{ .Release.Name }}
+        image: {{ .Values.image }}
+        env:
+          - name: PG_URL
+            value: "postgresql://{{ .Values.postgresUser }}:{{ .Values.postgresPassword }}@{{ .Values.postgresHost }}:5432"
+        ports:
+        - containerPort: 8080
